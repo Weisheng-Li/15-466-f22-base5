@@ -202,6 +202,8 @@ void PlayMode::update(float elapsed) {
 
 		//update player's position to respect walking:
 		player.transform->position = walkmesh->to_world_point(player.at);
+		// std::cout << std::to_string(player.transform->position.x) + " " << std::to_string(player.transform->position.y) + " "
+		// 	<< std::to_string(player.transform->position.z) + " " << std::endl;
 
 		{ //update player's rotation to respect local (smooth) up-vector:
 			
@@ -250,7 +252,7 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 
 	scene.draw(*player.camera);
 
-	/* In case you are wondering if your walkmesh is lining up with your scene, try:
+	// In case you are wondering if your walkmesh is lining up with your scene, try:
 	{
 		glDisable(GL_DEPTH_TEST);
 		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
@@ -260,7 +262,6 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
 		}
 	}
-	*/
 
 	{ //use DrawLines to overlay some text:
 		glDisable(GL_DEPTH_TEST);

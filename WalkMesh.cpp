@@ -149,15 +149,27 @@ void WalkMesh::walk_in_triangle(WalkPoint const &start, glm::vec3 const &step, W
 	//figure out which edge (if any) is crossed first.
 	// set time and end appropriately.
 	glm::vec3 t = - (start.weights / step_coords);
-	if (t.x >= 0 && t.x <= 1) {
-		time = time < t.x ? time: t.x;
-	}
-	if (t.y >= 0 && t.y <= 1) {
-		time = time < t.y ? time: t.y;
-	}
-	if (t.z >= 0 && t.z <= 1) {
-		time = time < t.z ? time: t.z;
-	}
+	if (step_coords.x >= 0) t.x = 1.0f;
+	else t.x = t.x > 0 ? t.x : 0;
+	time = time < t.x ? time: t.x;
+
+	if (step_coords.y >= 0) t.y = 1.0f;
+	else t.y = t.y > 0 ? t.y : 0;
+	time = time < t.y ? time: t.y;
+
+	if (step_coords.z >= 0) t.z = 1.0f;
+	else t.z = t.z > 0 ? t.z : 0;
+	time = time < t.z ? time: t.z;
+
+	// if (t.x > 0 && t.x <= 1) {
+	// 	time = time < t.x ? time: t.x;
+	// }
+	// if (t.y > 0 && t.y <= 1) {
+	// 	time = time < t.y ? time: t.y;
+	// }
+	// if (t.z > 0 && t.z <= 1) {
+	// 	time = time < t.z ? time: t.z;
+	// }
 
 	end.weights = start.weights + time * step_coords;
 
@@ -180,6 +192,7 @@ void WalkMesh::walk_in_triangle(WalkPoint const &start, glm::vec3 const &step, W
 
 // move from one triangle to another
 bool WalkMesh::cross_edge(WalkPoint const &start, WalkPoint *end_, glm::quat *rotation_) const {
+	std::cout << "crossing edge" << std::endl;
 	assert(end_);
 	auto &end = *end_;
 
@@ -199,7 +212,7 @@ bool WalkMesh::cross_edge(WalkPoint const &start, WalkPoint *end_, glm::quat *ro
 		glm::vec3 world_start = to_world_point(start);
 		end.indices = glm::uvec3(edge.y, edge.x, third_vertex);
 		end.weights = barycentric_weights(vertices[end.indices.x], 
-			vertices[end.indices.y], vertices[end.indices.z], to_world_point(end)); 
+			vertices[end.indices.y], vertices[end.indices.z], world_start); 
 
 		//make 'rotation' the rotation that takes (start.indices)'s normal to (end.indices)'s normal:
 		// source: https://stackoverflow.com/questions/1171849/finding-quaternion-representing-the-rotation-from-one-vector-to-another
