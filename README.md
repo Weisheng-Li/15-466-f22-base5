@@ -1,18 +1,17 @@
-# (TODO: your game's title)
+# Walking Minesweeper
 
-Author: (TODO: your name)
+Author: Weisheng Li
 
-Design: (TODO: In two sentences or fewer, describe what is new and interesting about your game.)
-
+Design: It's basically a minesweeper game, but you have to walk on the checker board. Try to find a path to the destination without detonating any mines.
 Screen Shot:
 
 ![Screen Shot](screenshot.png)
 
 How To Play:
 
-(TODO: describe the controls and (if needed) goals/strategy.)
+Regular first person control (WASD + mouse). The number on the screen has the exact same meaning as minsweeper: the number of mines in your neighbor cells.
 
-Sources: (TODO: list a source URL for any assets you did not create yourself. Make sure you have a license for the asset.)
+Sources: N/A
 
 This game was built with [NEST](NEST.md).
 
