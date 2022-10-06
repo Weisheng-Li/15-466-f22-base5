@@ -3,7 +3,7 @@
 Author: Weisheng Li
 
 Design: It's basically a minesweeper game, but you have to walk on the checker board. Try to find a path to the destination without detonating any mines.
-Screen Shot:
+
 
 ![Screen Shot](screenshot.png)
 
