@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <deque>
+#include <array>
 
 struct PlayMode : Mode {
 	PlayMode();
@@ -27,6 +28,14 @@ struct PlayMode : Mode {
 
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
+
+	std::array<std::array<int16_t, 4>, 4> layout = {{
+		{1,1,1,1}, {-1, 2, -1, 2}, {1, 3, 3, -1}, {0, 1, -1, 2}
+	}};
+
+	const glm::vec3 start_pos = glm::vec3(-10.0f, -10.0f, 0.0f);
+
+	int16_t pos_to_layout(glm::vec3 player_pos);
 
 	//player info:
 	struct Player {

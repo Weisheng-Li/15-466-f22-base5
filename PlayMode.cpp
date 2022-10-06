@@ -15,13 +15,13 @@
 
 GLuint phonebank_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-	MeshBuffer const *ret = new MeshBuffer(data_path("phone-bank.pnct"));
+	MeshBuffer const *ret = new MeshBuffer(data_path("plane.pnct"));
 	phonebank_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
 
 Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
-	return new Scene(data_path("phone-bank.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
+	return new Scene(data_path("plane.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
 		Mesh const &mesh = phonebank_meshes->lookup(mesh_name);
 
 		scene.drawables.emplace_back(transform);
@@ -39,7 +39,7 @@ Load< Scene > phonebank_scene(LoadTagDefault, []() -> Scene const * {
 
 WalkMesh const *walkmesh = nullptr;
 Load< WalkMeshes > phonebank_walkmeshes(LoadTagDefault, []() -> WalkMeshes const * {
-	WalkMeshes *ret = new WalkMeshes(data_path("phone-bank.w"));
+	WalkMeshes *ret = new WalkMeshes(data_path("plane.w"));
 	walkmesh = &ret->lookup("WalkMesh");
 	return ret;
 });
@@ -48,6 +48,7 @@ PlayMode::PlayMode() : scene(*phonebank_scene) {
 	//create a player transform:
 	scene.transforms.emplace_back();
 	player.transform = &scene.transforms.back();
+	player.transform->position = start_pos;
 
 	//create a player camera attached to a child of the player transform:
 	scene.transforms.emplace_back();
@@ -136,6 +137,22 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	return false;
 }
 
+int16_t PlayMode::pos_to_layout(glm::vec3 player_pos) {
+	// checker board has grid_size * grid_size grid cells
+	const unsigned int grid_size = 4;
+	const unsigned int grid_cell_size = 5;
+
+	// define initial player position (also defined in)
+	glm::vec2 offset = glm::vec2(player_pos - start_pos);
+
+	glm::uvec2 quantized_offset = glm::vec2(floor(offset.x)/grid_cell_size, floor(offset.y)/grid_cell_size);
+	quantized_offset.x = quantized_offset.x >= grid_size? grid_size - 1 : quantized_offset.x;
+	quantized_offset.y = quantized_offset.y >= grid_size? grid_size - 1 : quantized_offset.y;
+
+	const glm::uvec2 start_layout = glm::uvec2(0, grid_size - 1);
+	return layout[start_layout.y - quantized_offset.y][start_layout.x + quantized_offset.x];
+}
+
 void PlayMode::update(float elapsed) {
 	//player walking:
 	{
@@ -202,9 +219,6 @@ void PlayMode::update(float elapsed) {
 
 		//update player's position to respect walking:
 		player.transform->position = walkmesh->to_world_point(player.at);
-		// std::cout << std::to_string(player.transform->position.x) + " " << std::to_string(player.transform->position.y) + " "
-		// 	<< std::to_string(player.transform->position.z) + " " << std::endl;
-
 		{ //update player's rotation to respect local (smooth) up-vector:
 			
 			glm::quat adjust = glm::rotation(
