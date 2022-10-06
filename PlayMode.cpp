@@ -12,6 +12,8 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include <random>
+#include <chrono>
+#include <thread>
 
 GLuint phonebank_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > phonebank_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -45,6 +47,10 @@ Load< WalkMeshes > phonebank_walkmeshes(LoadTagDefault, []() -> WalkMeshes const
 });
 
 PlayMode::PlayMode() : scene(*phonebank_scene) {
+	for (auto &transform : scene.transforms) {
+		if (transform.name == "Cone") target = &transform;
+	}
+
 	//create a player transform:
 	scene.transforms.emplace_back();
 	player.transform = &scene.transforms.back();
@@ -154,6 +160,15 @@ int16_t PlayMode::pos_to_layout(glm::vec3 player_pos) {
 }
 
 void PlayMode::update(float elapsed) {
+	if (countdown > 0.0f) {
+		countdown -= elapsed;
+		if (countdown <= 0) {
+			countdown = 0.0f;
+			reset_game();
+		}
+		return;
+	}
+
 	//player walking:
 	{
 		//combine inputs into a move:
@@ -228,14 +243,7 @@ void PlayMode::update(float elapsed) {
 			player.transform->rotation = glm::normalize(adjust * player.transform->rotation);
 		}
 
-		/*
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
-		glm::vec3 right = frame[0];
-		//glm::vec3 up = frame[1];
-		glm::vec3 forward = -frame[2];
-
-		camera->transform->position += move.x * right + move.y * forward;
-		*/
+		current_state = pos_to_layout(player.transform->position);
 	}
 
 	//reset button press counters:
@@ -257,7 +265,28 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	glUniform3fv(lit_color_texture_program->LIGHT_ENERGY_vec3, 1, glm::value_ptr(glm::vec3(1.0f, 1.0f, 0.95f)));
 	glUseProgram(0);
 
-	glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+	{	// set background color based on current state
+		const std::vector<glm::vec3> color_pallete = {
+			glm::vec3(0.9176f, 0.8828f, 0.7176f), // cream
+			glm::vec3(0.9882f, 0.7490f, 0.2863f), // yellow
+			glm::vec3(0.9686f, 0.4980f, 0.0000f), // orange
+			glm::vec3(0.8392f, 0.1569f, 0.1569f), // red
+			glm::vec3(0.0000f, 0.1882f, 0.2863f)  // dark blue
+		};
+		size_t pallete_size = color_pallete.size();
+		glm::vec3 current_color;
+		
+
+		if (current_state == -1) current_color = color_pallete[pallete_size - 1];
+		else if (current_state == 100) current_color = color_pallete[1];
+		else {
+			assert(current_state < static_cast<int16_t>(pallete_size));
+			current_color = color_pallete[current_state];
+		}
+
+		glClearColor(current_color.x, current_color.y, current_color.z, 1.0f);
+	}
+
 	glClearDepth(1.0f); //1.0 is actually the default value to clear the depth buffer to, but FYI you can change it.
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -267,36 +296,78 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	scene.draw(*player.camera);
 
 	// In case you are wondering if your walkmesh is lining up with your scene, try:
-	{
-		glDisable(GL_DEPTH_TEST);
-		DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
-		for (auto const &tri : walkmesh->triangles) {
-			lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
-			lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+	// {
+	// 	glDisable(GL_DEPTH_TEST);
+	// 	DrawLines lines(player.camera->make_projection() * glm::mat4(player.camera->transform->make_world_to_local()));
+	// 	for (auto const &tri : walkmesh->triangles) {
+	// 		lines.draw(walkmesh->vertices[tri.x], walkmesh->vertices[tri.y], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+	// 		lines.draw(walkmesh->vertices[tri.y], walkmesh->vertices[tri.z], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+	// 		lines.draw(walkmesh->vertices[tri.z], walkmesh->vertices[tri.x], glm::u8vec4(0x88, 0x00, 0xff, 0xff));
+	// 	}
+	// }
+
+	glDisable(GL_DEPTH_TEST);
+	float aspect = float(drawable_size.x) / float(drawable_size.y);
+	DrawLines lines(glm::mat4(
+		1.0f / aspect, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	));
+
+	if (current_state == -1) {
+		// game over
+		constexpr float H2 = 0.3f;
+		lines.draw_text("Game Over",
+		glm::vec3(-aspect + 4.0f * H2, -1.0 + 5.0f * H2, 0.0),
+		glm::vec3(H2, 0.0f, 0.0f), glm::vec3(0.0f, H2, 0.0f),
+		glm::u8vec4(0xff, 0xff, 0xff, 0xff));
+
+		if (countdown == 0.0f)
+			countdown = 2.0f;
+	} else if (current_state == 100) {
+		// game over
+		constexpr float H2 = 0.3f;
+		lines.draw_text("You've reached the",
+		glm::vec3(-aspect + 2.5f * H2, -1.0 + 5.0f * H2, 0.0),
+		glm::vec3(H2, 0.0f, 0.0f), glm::vec3(0.0f, H2, 0.0f),
+		glm::u8vec4(0x0, 0x0, 0x0, 0x0));
+		lines.draw_text("Destination",
+		glm::vec3(-aspect + 4.0f * H2, -1.0 + 3.5f * H2, 0.0),
+		glm::vec3(H2, 0.0f, 0.0f), glm::vec3(0.0f, H2, 0.0f),
+		glm::u8vec4(0x0, 0x0, 0x0, 0x0));
+
+		if (countdown == 0.0f) {
+			countdown = 2.0f;
+			target->position = target->position + glm::vec3(0, 0, -100);
 		}
+	} else {
+		constexpr float H2 = 0.3f;
+		glm::u8vec4 color;
+		if (current_state < 2) color = glm::u8vec4(0x0, 0x0, 0x0, 0x0);
+		else 				   color = glm::u8vec4(0xff, 0xff, 0xff, 0x00);
+
+		lines.draw_text(std::to_string(current_state),
+		glm::vec3(-aspect + 5.5f * H2, -1.0 + 5.0f * H2, 0.0),
+		glm::vec3(H2, 0.0f, 0.0f), glm::vec3(0.0f, H2, 0.0f),
+		color);
 	}
 
-	{ //use DrawLines to overlay some text:
-		glDisable(GL_DEPTH_TEST);
-		float aspect = float(drawable_size.x) / float(drawable_size.y);
-		DrawLines lines(glm::mat4(
-			1.0f / aspect, 0.0f, 0.0f, 0.0f,
-			0.0f, 1.0f, 0.0f, 0.0f,
-			0.0f, 0.0f, 1.0f, 0.0f,
-			0.0f, 0.0f, 0.0f, 1.0f
-		));
-
-		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
-			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
-		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion looks; WASD moves; escape ungrabs mouse",
-			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
-			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
-			glm::u8vec4(0xff, 0xff, 0xff, 0x00));
-	}
 	GL_ERRORS();
+}
+
+void PlayMode::reset_game() {
+	if (target->position.z <= -50) target->position += glm::vec3(0, 0, 100);
+
+	// reset player
+	player.transform->position = start_pos;
+	player.transform->rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+
+	//rotate camera facing direction (-z) to player facing direction (+y):
+	player.camera->transform->rotation = glm::angleAxis(glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+
+	//start player walking at nearest walk point:
+	player.at = walkmesh->nearest_walk_point(player.transform->position);
+
+	current_state = pos_to_layout(player.transform->position);
 }

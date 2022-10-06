@@ -28,14 +28,22 @@ struct PlayMode : Mode {
 
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
+	Scene::Transform *target = nullptr;
 
+	int16_t pos_to_layout(glm::vec3 player_pos);
 	std::array<std::array<int16_t, 4>, 4> layout = {{
-		{1,1,1,1}, {-1, 2, -1, 2}, {1, 3, 3, -1}, {0, 1, -1, 2}
+		{1, 1, 1, 100}, 
+		{-1, 2, -1, 2}, 
+		{1, 3, 3, -1}, 
+		{0, 1, -1, 2}
 	}};
+
+	int16_t current_state;
+	float countdown = 0.0f;
 
 	const glm::vec3 start_pos = glm::vec3(-10.0f, -10.0f, 0.0f);
 
-	int16_t pos_to_layout(glm::vec3 player_pos);
+	void reset_game();
 
 	//player info:
 	struct Player {

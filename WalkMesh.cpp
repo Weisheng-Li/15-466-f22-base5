@@ -192,7 +192,6 @@ void WalkMesh::walk_in_triangle(WalkPoint const &start, glm::vec3 const &step, W
 
 // move from one triangle to another
 bool WalkMesh::cross_edge(WalkPoint const &start, WalkPoint *end_, glm::quat *rotation_) const {
-	std::cout << "crossing edge" << std::endl;
 	assert(end_);
 	auto &end = *end_;
 
@@ -303,6 +302,7 @@ WalkMeshes::WalkMeshes(std::string const &filename) {
 		}
 		
 		std::string name(names.begin() + e.name_begin, names.begin() + e.name_end);
+		std::cout << name << std::endl;
 
 		auto ret = meshes.emplace(name, WalkMesh(wm_vertices, wm_normals, wm_triangles));
 		if (!ret.second) {
